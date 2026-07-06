@@ -1,0 +1,8 @@
+from tensor import arange
+
+x = arange(0, 100000)
+# arange does not require gradients; use a constructed leaf for the grad demo.
+from tensor import tensor
+leaf = tensor([1, 2, 3, 4], true)
+(leaf * leaf).mean().backward()
+print(leaf.grad)

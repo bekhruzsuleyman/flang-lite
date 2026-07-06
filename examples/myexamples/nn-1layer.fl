@@ -1,0 +1,31 @@
+from tensor import tensor
+
+# Tiny linear model:
+# y = x * w + b
+
+x = tensor([1, 2, 3])
+target = tensor([3, 5, 7])
+
+w = tensor([0], true)
+b = tensor([0], true)
+
+lr = 10
+
+for step in range(0, 20):
+    pred = x * w + b
+    error = pred - target
+    loss = (error * error).mean()
+
+    print(loss)
+
+    loss.backward()
+
+    # gradient descent
+    w = w - (w.grad / lr)
+    b = b - (b.grad / lr)
+
+    w.zero_grad()
+    b.zero_grad()
+
+print("final prediction:")
+print(x * w + b)

@@ -1,0 +1,6 @@
+name: str = "Flang"
+print(name)
+print("hello " + "world")
+print(len(name))
+print(name[0])
+print("# not a comment")

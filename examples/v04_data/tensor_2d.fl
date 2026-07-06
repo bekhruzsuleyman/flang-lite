@@ -1,0 +1,7 @@
+m = tensor([
+    [1, 2],
+    [3, 4]
+])
+print(m)
+print(shape(m))
+print(rank(m))

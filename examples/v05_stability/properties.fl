@@ -1,0 +1,9 @@
+x = tensor([[1, 2], [3, 4]])
+nums = [1, 2, 3, 4]
+name = "flang"
+
+print(x.shape)
+print(x.rank)
+print(x.len)
+print(nums.len)
+print(name.len)

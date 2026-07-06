@@ -1,0 +1,8 @@
+pub fn square(x: int) -> int:
+    return x * x
+
+pub fn cube(x: int) -> int:
+    return x * x * x
+
+fn hidden(x: int) -> int:
+    return x + 999

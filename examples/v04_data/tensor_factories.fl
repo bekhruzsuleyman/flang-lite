@@ -1,0 +1,6 @@
+z = zeros([2, 3])
+o = ones([2, 3])
+print(shape(z))
+print(shape(o))
+print(z)
+print(o)

@@ -1,0 +1,6 @@
+from tensor import tensor
+
+x = tensor([1, 2, 3], true)
+y = x * 3 + 5
+y.sum().backward()
+print(x.grad)

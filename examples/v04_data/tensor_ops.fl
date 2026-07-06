@@ -1,0 +1,7 @@
+a = tensor([1, 2, 3])
+b = tensor([4, 5, 6])
+print(a + b)
+print(a * b)
+print(a * b + 10)
+print(10 + a)
+print(10 - a)

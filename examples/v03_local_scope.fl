@@ -1,0 +1,8 @@
+x: int = 10
+
+fn f() -> int:
+    x: int = 3
+    return x
+
+print(f())
+print(x)

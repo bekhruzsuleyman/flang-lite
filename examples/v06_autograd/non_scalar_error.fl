@@ -1,0 +1,4 @@
+from tensor import tensor
+
+x = tensor([1, 2, 3], true)
+x.backward()

@@ -1,0 +1,6 @@
+nums: list = [1, 2, 3, 4]
+print(nums)
+print(nums[0])
+print(len(nums))
+nums[1] = 99
+print(nums[1])

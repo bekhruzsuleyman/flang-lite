@@ -1,0 +1,18 @@
+import math
+
+fn predict(w: int, b: int, xs: tensor) -> tensor:
+    return xs * w + b
+
+fn evaluate(pred: tensor, ys: tensor):
+    error = pred - ys
+    loss = error * error
+    print(loss)
+
+xs = tensor([1, 2, 3, 4])
+ys = tensor([3, 5, 7, 9])
+pred = predict(2, 1, xs)
+
+evaluate(pred, ys)
+print(pred)
+print(pred.shape)
+print(pred.rank)

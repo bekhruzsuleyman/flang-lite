@@ -1,0 +1,13 @@
+from tensor import tensor
+
+x = tensor([1, 2, 3], true)
+y = x * x + 2
+loss = y.sum()
+loss.backward()
+
+print(x)
+print(y)
+print(loss)
+print(x.grad)
+print(x.shape)
+print(x.rank)

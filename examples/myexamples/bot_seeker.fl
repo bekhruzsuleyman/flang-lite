@@ -1,0 +1,76 @@
+import math
+
+fn print_header(title: str):
+    print("==============================")
+    print(title)
+    print("==============================")
+
+fn clamp(x: int, lo: int, hi: int) -> int:
+    if x < lo:
+        return lo
+
+    if x > hi:
+        return hi
+
+    return x
+
+fn move_bot(pos: int, target: int, speed: int) -> int:
+    if pos < target:
+        return pos + speed
+
+    if pos > target:
+        return pos - speed
+
+    return pos
+
+fn energy(pos: int, target: int) -> int:
+    d: int = pos - target
+    return d * d
+
+fn draw_world(bot: int, target: int):
+    line: str = ""
+
+    i: int = 0
+    while i < 20:
+        if i == bot:
+            line = line + "B"
+        else:
+            if i == target:
+                line = line + "T"
+            else:
+                line = line + "."
+
+        i = i + 1
+
+    print(line)
+
+fn main():
+    print_header("FLANG LITE V0.4 BOT SEEKER")
+
+    bot: int = 2
+    target: int = 17
+    speed: int = 3
+
+    step: int = 0
+
+    while step < 8:
+        print_header("STEP")
+        print(step)
+
+        print("world:")
+        draw_world(bot, target)
+
+        print("energy:")
+        print(energy(bot, target))
+
+        bot = move_bot(bot, target, speed)
+        bot = clamp(bot, 0, 19)
+
+        step = step + 1
+
+    print_header("FINAL")
+    draw_world(bot, target)
+    print("final energy:")
+    print(energy(bot, target))
+
+main()

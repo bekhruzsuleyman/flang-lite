@@ -1,0 +1,5 @@
+x: int = 5
+
+print(x > 1 and x < 10)
+print(x == 5 or x == 6)
+print(not false)

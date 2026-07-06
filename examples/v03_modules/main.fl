@@ -1,0 +1,6 @@
+import math
+from config import VERSION
+
+print(math.square(5))
+print(math.cube(3))
+print(VERSION)

@@ -1,0 +1,16 @@
+import math
+
+nums = [1, 2, 3, 4]
+for n in nums:
+    print(math.square(n))
+
+name = "flang"
+print(len(name))
+print(name[0])
+
+a = tensor([1, 2, 3])
+b = tensor([4, 5, 6])
+c = a * b + 10
+print(c)
+print(shape(c))
+print(rank(c))

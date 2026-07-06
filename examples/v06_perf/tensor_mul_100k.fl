@@ -1,0 +1,5 @@
+from tensor import arange
+
+a = arange(0, 100000)
+b = a * 3
+print(b.len)

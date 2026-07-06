@@ -1,0 +1,4 @@
+x: tensor = tensor([1, 2, 3])
+print(x)
+print(shape(x))
+print(rank(x))

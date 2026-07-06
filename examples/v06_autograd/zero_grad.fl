@@ -1,0 +1,8 @@
+from tensor import tensor
+
+x = tensor([1, 2, 3], true)
+loss = (x * x).sum()
+loss.backward()
+print(x.grad)
+x.zero_grad()
+print(x.grad)

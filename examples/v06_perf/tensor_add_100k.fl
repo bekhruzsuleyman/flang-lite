@@ -1,0 +1,6 @@
+from tensor import arange
+
+a = arange(0, 100000)
+b = arange(100000, 200000)
+c = a + b
+print(c.len)

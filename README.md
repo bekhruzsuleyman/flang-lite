@@ -1,218 +1,293 @@
 # Flang Lite v0.7
 
-Flang Lite is a minimal Python-like scripting language implemented in C.
-Version 0.7 makes Flang compiler-shaped: typed AST is lowered to IR, optimized,
-compiled to bytecode, and executed by a slot-based stack VM. The v0.6 native
-tensor and autograd runtime remains the VM's tensor backend.
+Flang Lite is a small, statically checked, Python-like language implemented in
+C11 with no external dependencies. A program is lexed, parsed, name-resolved and
+type-checked before anything runs; it is then lowered to a typed IR, optimized,
+compiled to bytecode, and executed on a slot-based stack VM. The language has
+indentation-based blocks, functions, modules with public/private visibility,
+arrays and strings, and a native f64 tensor type with reverse-mode automatic
+differentiation. An older AST interpreter is kept as a compatibility backend.
 
-For a complete guide, see [Flang Lite: Complete Tutorial](FLANG_LITE_TUTORIAL.md).
+The full language guide is in the
+[Flang Lite tutorial](FLANG_LITE_TUTORIAL.md).
 
-## Build and run
+## Example
 
-You need a C11 compiler, GNU Make, and Python 3 (for the tests).
-
-```sh
-make release
-./build/flang examples/hello.fl
-make run
-make test
-make debug
-make clean
-```
-
-On Windows, the executable is `build/flang.exe`.
-Debug builds use AddressSanitizer and UndefinedBehaviorSanitizer where the host
-toolchain provides them; the Windows target uses portable `-O0 -g` flags.
-
-## VM pipeline and CLI
-
-The default execution pipeline is:
-
-```text
-lexer -> parser -> resolver -> type checker -> IR -> optimizer -> bytecode -> VM
-```
-
-The VM uses integer slots for module variables, function parameters, and local
-variables. Its bytecode has typed integer, string, array, and tensor operations;
-known tensor methods are lowered to fixed native method IDs. Constant folding,
-dead-code cleanup, and redundant-jump cleanup run before bytecode generation.
-
-```sh
-./build/flang program.fl
-./build/flang --interp program.fl
-./build/flang --vm --dump-ir program.fl
-./build/flang --dump-bytecode program.fl
-./build/flang --no-opt program.fl
-./build/flang --time program.fl
-```
-
-`--interp` retains the v0.6 AST evaluator for comparison and debugging. User
-module bytecode and index-assignment lowering remain transitional: those
-constructs automatically use the compatibility interpreter, while arithmetic,
-control flow, functions, arrays, `for`, strings, native tensor imports,
-properties, tensor operations, and autograd execute on the VM.
-
-## Language
-
-A Flang program can combine modules, loops, arrays, and tensors:
+`examples/v06_autograd/complete.fl`:
 
 ```flang
-values = [1, 2, 3]
-for value in values:
-    print(value)
-
-x = tensor([[1, 2], [3, 4]])
-print(shape(x))
-```
-
-Version 0.7 supports all earlier language features, plus:
-
-- Double-quoted strings with `\n`, `\t`, `\"`, and `\\` escapes
-- Mixed and nested arrays with indexing and index assignment
-- `len()`, two-argument `range()`, and `for` over arrays and ranges
-- Multiline array and function-call expressions
-- Contiguous f64 tensors built from rectangular integer arrays
-- `shape()`, `rank()`, `zeros()`, and `ones()`
-- Checked tensor indexing and same-shape elementwise arithmetic
-- Scalar/tensor arithmetic in either operand order
-- `.shape`, `.rank`, and `.len` tensor properties
-- `.len` on arrays and strings
-- Pre-execution name, scope, import, and visibility resolution
-- Static operator, assignment, call, return, condition, and known-shape checks
-- Inferred declarations such as `error = pred - target` inside functions
-- Homogeneous array element inference such as `array[int]`
-- Source-line, caret, and actionable-hint diagnostics
-- Native `tensor` module imports and qualified module calls
-- Tensor `.sum()`, `.mean()`, `.backward()`, and `.zero_grad()` methods
-- Tensor `.grad` and `.requires_grad` properties
-- Autograd for `+`, `-`, `*`, `/`, `sum`, and `mean`
-- Typed IR and readable IR dumps
-- Constant folding and bytecode compilation
-- Slot-based VM locals and globals
-- Specialized tensor bytecode operations
-- VM/interpreter selection and compile/execution timing
-
-Blocks use leading spaces. Tabs are rejected when used for indentation, and
-blank and comment-only lines do not affect indentation. Every module has its
-own global environment; each function call creates a local environment.
-Assignments update the nearest existing binding. Typed declarations inside a
-function create locals, allowing safe shadowing of module variables. An
-unannotated assignment creates an inferred variable in the current scope when
-no existing binding is found.
-
-Function calls validate argument counts and parameter types. Non-void functions
-must return a value of their declared type, while void functions cannot return a
-value. Arithmetic, comparisons, boolean logic, and conditions retain v0.2's
-strict runtime checks. Declarations support `int`, `bool`, `str`, `list`, and
-`tensor`; v0.5 checks declarations and later assignments before evaluation.
-
-## Pipeline and diagnostics
-
-Every program now passes through:
-
-```text
-lexer -> parser -> resolver -> type checker -> evaluator
-```
-
-The evaluator runs only after both semantic passes succeed. The resolver checks
-names, duplicate declarations, scopes, modules, imports, and public visibility
-without executing module code. The type checker tracks inferred and annotated
-types, function signatures, data properties, and statically known tensor
-shapes. Diagnostics share the format:
-
-```text
-file.fl:line:column: type error: message
-
-    source line
-    ^^^^^
-
-hint: an actionable suggestion
-```
-
-## Native tensors and autograd
-
-Arrays use deep-copy value semantics when assigned or passed to functions:
-
-```flang
-items = [1, 2, 3]
-copy = items
-copy[0] = 9
-print(items) # [1, 2, 3]
-```
-
-Tensor literals accept nested integer arrays but store data as doubles. Operations
-run as contiguous native C loops and support equal tensor shapes or one tensor
-and one integer scalar. The evaluator dispatches once per operation—there is no
-per-element dynamic `Value` dispatch.
-
-Import the native module in either style:
-
-```flang
-from tensor import tensor, zeros, ones, arange
+from tensor import tensor
 
 x = tensor([1, 2, 3], true)
 y = x * x + 2
 loss = y.sum()
 loss.backward()
-print(x.grad) # [2, 4, 6]
+
+print(x)
+print(y)
+print(loss)
+print(x.grad)
+print(x.shape)
+print(x.rank)
 ```
+
+```console
+$ ./build/flang examples/v06_autograd/complete.fl
+[1, 2, 3]
+[3, 6, 11]
+20
+[2, 4, 6]
+[3]
+1
+```
+
+`x.grad` is d(sum(x*x + 2))/dx = 2x.
+
+## Build and run
+
+Requirements: a C11 compiler, GNU Make, and Python 3 for the test suite.
+
+```sh
+make release                      # clean optimized build -> build/flang
+./build/flang examples/hello.fl   # run a script
+make test                         # end-to-end test suite
+make debug                        # -O0 -g with ASan/UBSan where available
+make run                          # runs examples/v07_vm/tensors.fl
+make clean
+```
+
+On Windows the executable is `build/flang.exe`.
+
+> **Known build issue:** the build uses `-Wall -Wextra -Werror -pedantic`.
+> With GCC 13.3, `-O2` reports `-Wmaybe-uninitialized` in
+> `src/interpreter.c` (`evaluate_binary`) and the build stops. Clang 18 builds
+> without warnings: `make release CC=clang`.
+
+### CLI
+
+```text
+flang [--vm | --interp] [--dump-ir] [--dump-bytecode] [--no-opt] [--time] script.fl
+```
+
+| Option | Behavior |
+|---|---|
+| `--vm` | IR -> bytecode -> VM pipeline (default) |
+| `--interp` | Run on the AST compatibility interpreter |
+| `--dump-ir` | Print the (optimized) IR before execution |
+| `--dump-bytecode` | Disassemble the generated bytecode |
+| `--no-opt` | Disable optimizer passes |
+| `--time` | Print the backend used and compile/execute times to stderr |
+| `--version` | Print the version |
+
+Exit codes: `64` usage error, `65` lexer/parser/resolve/type error, `70`
+runtime error, `74` unreadable source file.
+
+## Pipeline
+
+```text
+source
+  -> lexer            tokens, indentation (spaces only)
+  -> parser           AST
+  -> resolver         names, scopes, imports, visibility, duplicates
+  -> type checker     inferred/annotated types, signatures, known tensor shapes
+  -> IR builder       typed IR, names resolved to integer slots
+  -> optimizer        constant folding, dead-code and redundant-jump cleanup
+  -> bytecode         typed integer/string/array/tensor opcodes
+  -> stack VM         slot-based globals and locals, native tensor kernels
+```
+
+Both semantic passes complete before any code runs, so a type error in a
+program (or in an imported module) produces no partial output.
+
+The optimizer folds integer and boolean constants while preserving
+division-by-zero and overflow behavior:
+
+```console
+$ ./build/flang --dump-ir examples/v07_vm/arithmetic.fl
+IR function __main__ (slots=0):
+  0000  CONST                14
+  0001  STORE_GLOBAL         0
+  0002  LOAD_GLOBAL          0
+  0003  PRINT
+  0004  HALT
+14
+```
+
+Tensor expressions compile to specialized opcodes such as `OP_TENSOR_MUL` and
+`OP_TENSOR_ADD`; known tensor methods are lowered to fixed native method IDs.
+Each bytecode instruction carries a source line and column for diagnostics.
+
+**Backend fallback.** Two constructs are not yet lowered to IR: importing a
+user-defined `.fl` module and index assignment (`a[i] = v`). Programs that use
+them run automatically on the AST interpreter, with the same semantics.
+`--time` reports which backend ran (`vm` or `interpreter fallback`), and
+`--dump-bytecode` prints the fallback reason.
+
+## Language
 
 ```flang
-import tensor
-x = tensor.tensor([1, 2, 3])
+fn is_large(value: int) -> bool:
+    return value >= 10
+
+values = [4, 10, 15]
+for value in values:
+    if is_large(value):
+        print("large")
+    else:
+        print("small")
 ```
 
-The second `tensor()` argument is optional and controls `requires_grad`.
-Autograd nodes are allocated only when an operand requires gradients. Backward
-uses an iterative reverse-topological traversal, gradients accumulate across
-calls, and `zero_grad()` resets a tensor's accumulated gradient. `backward()`
-requires a scalar result, normally produced with `sum()` or `mean()`.
+- **Types:** `int` (64-bit, overflow-checked), `bool`, `str`, `list`, `tensor`,
+  and `void` for functions. Variables are inferred (`x = 5`) or annotated
+  (`x: int = 5`); homogeneous arrays infer element types such as `array[int]`.
+- **Control flow:** `if`/`else`, `while`, `for x in array`, and
+  `for i in range(start, end)`. Conditions must be `bool`.
+- **Functions:** `fn name(a: int) -> int:` with checked argument counts,
+  parameter types, and return types; recursion; each call gets its own locals.
+- **Scope:** every module has its own globals. An assignment updates the
+  nearest existing binding; a typed declaration inside a function creates a
+  local that may shadow a module variable.
+- **Strings:** double-quoted, with `\n`, `\t`, `\"`, `\\` escapes and `+`
+  concatenation.
+- **Arrays:** homogeneous (elements must share a type) and nestable, with
+  checked indexing, index assignment, and deep-copy value semantics on
+  assignment and argument passing.
+- **Built-ins:** `print`, `len`, `range`, `tensor`, `shape`, `rank`, `zeros`,
+  `ones`; `.len` on strings, arrays, and tensors.
+- **Syntax:** indentation with spaces (tabs are rejected), `#` comments,
+  multiline array literals and call arguments.
 
-Properties are available without function calls:
+## Tensors and autograd
+
+Tensors are contiguous, single-dtype (f64) arrays built from rectangular
+integer arrays. Arithmetic dispatches once per operation and then runs a tight
+C loop over raw doubles; there is no per-element dynamic value dispatch.
 
 ```flang
-x = tensor([[1, 2], [3, 4]])
-print(x.shape) # [2, 2]
-print(x.rank)  # 2
-print(x.len)   # 4
-print(x.requires_grad)
+from tensor import tensor, zeros, ones, arange
+
+a = tensor([1, 2, 3])
+b = tensor([4, 5, 6])
+print(a * b + 10)   # [14, 20, 28]
+print(b / a)        # [4, 2.5, 2]
+print(a.shape)      # [3]
+print(zeros([2, 3]))
+print(arange(2, 6)) # [2, 3, 4, 5]
 ```
+
+- `+ - * /` between two tensors of the same shape, or a tensor and an `int`
+  in either order.
+- Properties `.shape`, `.rank`, `.len`, `.requires_grad`, `.grad`; methods
+  `.sum()`, `.mean()`, `.backward()`, `.zero_grad()`; indexing `x[i]`, `x[i][j]`.
+- Shape mismatches that are known statically are type errors; the rest are
+  runtime errors. Ragged arrays are rejected.
+
+Autograd is reverse-mode. `tensor(values, true)` sets `requires_grad`; graph
+nodes are allocated only when an operand requires gradients, so no-grad
+arithmetic takes a graph-free path. Differentiable operations are `+`, `-`,
+`*`, `/`, `sum()` and `mean()`. `backward()` needs a scalar (rank-zero) tensor,
+builds a topological order iteratively (no recursion, so deep graphs do not
+overflow the C stack), and accumulates gradients across calls until
+`zero_grad()` resets them.
 
 ## Modules
-
-Imports first search for `<module>.fl` relative to the entry script, then the
-project `stdlib/` directory, then the native module registry. A local module can
-therefore intentionally shadow a standard module.
-Modules are cached, so duplicate imports execute a module only once. Circular
-imports are detected and rejected. Declarations are private by default:
 
 ```flang
 # math.fl
 pub fn square(x: int) -> int:
     return x * x
 
-fn helper(x: int) -> int:
+fn helper(x: int) -> int:   # private: not importable
     return x + 1
 ```
 
 ```flang
 # main.fl
 import math
+from math import square
+import math as m
 print(math.square(5))
 ```
 
-The interpreter reports lexer, parser, resolve, type, and runtime errors with
-source line and column information. Errors include invalid indentation,
-undefined variables, incorrect operator types, non-boolean conditions, division
-by zero, and integer overflow.
+Declarations are private unless marked `pub`. `import name` looks for
+`name.fl` next to the entry script, then in `stdlib/`, then in the native
+module registry (currently `tensor`), so a local file can shadow a standard
+module. Modules are cached and run once; circular imports are detected and
+rejected. The `stdlib/*.fl` files are currently empty placeholders.
 
-The [v0.7 VM examples](examples/v07_vm/) cover IR-friendly arithmetic, slots,
-control flow, functions, arrays, modules, tensors, and a loop benchmark.
-The [v0.6 autograd examples](examples/v06_autograd/) cover native imports,
-reductions, gradients, accumulation, and diagnostics. The
-[performance examples](examples/v06_perf/) exercise the grad and no-grad paths.
-Earlier [v0.5 examples](examples/v05_stability/) remain supported.
+## Diagnostics
 
-Broadcasting, matmul, neural-network layers, optimizers, GPU execution, SIMD,
-views/strides, higher-order gradients, bytecode, LLVM, and JIT compilation
-remain outside the v0.6 scope.
+All phases share one format: file, line, column, phase, message, the source
+line with a caret, and often a hint.
+
+```console
+$ ./build/flang examples/v05_stability/type_error.fl
+examples/v05_stability/type_error.fl:1:10: type error: Cannot initialize variable 'x' of type int with value of type str
+
+    x: int = "hello"
+             ^^^^^^^
+
+hint: change the annotation or use a value of the declared type
+```
+
+Runtime errors from the VM keep their source spans, for example:
+
+```text
+nb.fl:3:11: runtime error: backward() requires scalar tensor; got shape [3]
+
+    x.backward()
+              ^
+
+hint: use tensor.sum().backward() or tensor.mean().backward()
+```
+
+## Tests
+
+`tests/run_tests.py` is an end-to-end suite of 79 tests. It runs the binary on
+programs from every version (v0.1 to v0.7) and checks output and diagnostics:
+parsing, scopes, type errors, modules and visibility, arrays, tensors,
+autograd, IR and bytecode dumps, constant folding, backend selection, and VM
+source spans.
+
+```console
+$ make test CC=clang
+...
+Ran 79 tests in 0.259s
+
+OK
+```
+
+Runnable programs are in [`examples/`](examples/), grouped by the version
+that introduced them (`v0_2`, `v03_*`, `v04_data`, `v05_stability`,
+`v06_autograd`, `v06_perf`, `v07_vm`). Files named `*_error.fl` are expected
+to fail with a diagnostic.
+
+## Source layout
+
+```text
+include/   compiler and runtime headers
+src/       lexer, parser, resolver, type checker, IR, optimizer, bytecode, VM, interpreter, CLI
+runtime/   values, tensor kernels, autograd, native module registry
+stdlib/    standard-library module placeholders
+examples/  versioned example programs
+tests/     end-to-end Python test suite
+```
+
+## Limitations
+
+Not implemented in v0.7:
+
+- user-module imports and index assignment on the VM (they use the
+  interpreter fallback described above);
+- float literals or a scalar `float` type (only tensors hold f64 values);
+- `elif`, `break`, `continue`, exceptions, named arguments;
+- classes, structs, dictionaries, generics;
+- tensor broadcasting, matrix multiplication, slicing, views/strides, multiple
+  dtypes, higher-order gradients;
+- neural-network layers, optimizers, GPU or SIMD kernels;
+- a real standard library, package management, FFI;
+- native code generation (no JIT, LLVM, or assembly backend).
+
+## License
+
+MIT. See [LICENSE](LICENSE). Copyright (c) 2026 Bekhruz Suleyman.
